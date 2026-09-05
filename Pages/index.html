@@ -1,422 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>UniFlow - Dashboard</title>
-
-    <!-- Google Font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet"
-    >
-
-    <!-- UniFlow CSS -->
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniFlow - Academic Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body data-page="dashboard">
 
-    <!-- =====================================================
-         SIDEBAR
-         App.js will automatically insert the sidebar here
-         ===================================================== -->
+  <div class="app-container">
 
-    <aside id="sidebar-mount"></aside>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-badge">🎓</div>
+        <div class="logo-text">
+          <h1>UniFlow</h1>
+          <span>University Life OS</span>
+        </div>
+      </div>
 
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-item active"><span>📊</span> <span>Dashboard</span></a></li>
+        <li><a href="scanner.html" class="nav-item"><span>✨</span> <span>Notice & PDF AI</span> <span class="nav-tag">AI</span></a></li>
+        <li><a href="calendar.html" class="nav-item"><span>📅</span> <span>Smart Calendar</span></a></li>
+        <li><a href="courses.html" class="nav-item"><span>📚</span> <span>Course Hub</span></a></li>
+        <li><a href="tasks.html" class="nav-item"><span>✅</span> <span>Assignments & Tests</span></a></li>
+        <li><a href="projects.html" class="nav-item"><span>👥</span> <span>Group Projects</span></a></li>
+        <li><a href="analytics.html" class="nav-item"><span>📈</span> <span>Study Analytics</span></a></li>
+      </ul>
 
-    <!-- =====================================================
-         MAIN CONTENT
-         ===================================================== -->
+      <div class="sidebar-footer">
+        <strong>Fall Semester 2026</strong>
+        <div style="font-size: 0.72rem; color: #94a3b8;">Week 5 of 14</div>
+      </div>
+    </aside>
 
-    <main class="main-content">
+    <!-- MAIN WRAPPER -->
+    <div class="main-wrapper">
 
-        <!-- ================= HEADER ================= -->
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="search-input-group">
+          <span>🔍</span>
+          <input type="text" placeholder="Search courses, deadlines, exams...">
+        </div>
 
-        <header class="topbar">
+        <div class="topbar-actions">
+          <a href="scanner.html" class="btn btn-primary">
+            <span>✨</span> Scan Notice / PDF
+          </a>
 
-            <div>
-                <h1>Dashboard</h1>
+          <a href="tasks.html" class="icon-btn" title="Upcoming Deadlines">
+            <span>🔔</span>
+            <span class="notification-badge">0</span>
+          </a>
 
-                <p id="hero-line">
-                    Here's what's happening with your university life.
-                </p>
+          <div class="user-profile">
+            <div class="avatar">JD</div>
+            <div class="user-info">
+              <div class="name">John Doe</div>
+              <div class="role">B.Sc Computer Science</div>
             </div>
-
-        </header>
-
-
-        <!-- =================================================
-             WELCOME / HERO SECTION
-             ================================================= -->
-
-        <section class="hero-card">
-
-            <div class="hero-content">
-
-                <div>
-                    <span class="eyebrow">WELCOME BACK 👋</span>
-
-                    <h2>
-                        Stay organized.
-                        <br>
-                        Stay ahead.
-                    </h2>
-
-                    <p>
-                        UniFlow brings your courses, assignments,
-                        projects and deadlines together in one place.
-                    </p>
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             STATISTICS
-             ================================================= -->
-
-        <section class="stats-grid">
-
-            <!-- Due Tasks -->
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
-                    📝
-                </div>
-
-                <div>
-                    <span class="stat-label">
-                        Due Soon
-                    </span>
-
-                    <strong id="stat-due">
-                        0
-                    </strong>
-
-                    <small>
-                        tasks in the next 7 days
-                    </small>
-                </div>
-
-            </div>
-
-
-            <!-- Courses -->
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
-                    📚
-                </div>
-
-                <div>
-                    <span class="stat-label">
-                        Active Courses
-                    </span>
-
-                    <strong id="stat-courses">
-                        0
-                    </strong>
-
-                    <small>
-                        courses this semester
-                    </small>
-                </div>
-
-            </div>
-
-
-            <!-- Group Tasks -->
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
-                    👥
-                </div>
-
-                <div>
-                    <span class="stat-label">
-                        Group Tasks
-                    </span>
-
-                    <strong id="stat-group">
-                        0
-                    </strong>
-
-                    <small>
-                        collaborative tasks
-                    </small>
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             WEEKLY PLAN
-             ================================================= -->
-
-        <section class="panel">
-
-            <div class="sec-head">
-
-                <div>
-                    <h2>
-                        Your weekly plan
-                    </h2>
-
-                    <p>
-                        A quick overview of your upcoming academic work.
-                    </p>
-                </div>
-
-            </div>
-
-
-            <!-- Task list generated by App.js -->
-
-            <div
-                class="task-list"
-                id="tasklist"
-            ></div>
-
-        </section>
-
-
-        <!-- =================================================
-             COURSES
-             ================================================= -->
-
-        <section class="panel">
-
-            <div class="sec-head">
-
-                <div>
-                    <h2>
-                        Your courses
-                    </h2>
-
-                    <p>
-                        Your current semester courses.
-                    </p>
-                </div>
-
-
-                <!-- IMPORTANT:
-                     This link is already connected to Courses page -->
-
-                <a
-                    href="courses.html"
-                    class="view-all"
-                >
-                    View all →
-                </a>
-
-            </div>
-
-
-            <!-- Course cards generated by App.js -->
-
-            <div
-                class="courses"
-                id="mini-courses"
-            ></div>
-
-        </section>
-
-
-        <!-- =================================================
-             QUICK ACTIONS
-             ================================================= -->
-
-        <section class="panel">
-
-            <div class="sec-head">
-
-                <div>
-                    <h2>
-                        Quick actions
-                    </h2>
-
-                    <p>
-                        Jump directly to the tools you need.
-                    </p>
-                </div>
-
-            </div>
-
-
-            <div class="quick-actions">
-
-                <!-- Add Task -->
-
-                <a
-                    href="tasks.html"
-                    class="quick-action"
-                >
-
-                    <span class="quick-icon">
-                        ➕
-                    </span>
-
-                    <div>
-                        <strong>
-                            Add a task
-                        </strong>
-
-                        <small>
-                            Create an assignment, test or lab
-                        </small>
-                    </div>
-
-                </a>
-
-
-                <!-- Add Course -->
-
-                <a
-                    href="courses.html"
-                    class="quick-action"
-                >
-
-                    <span class="quick-icon">
-                        📚
-                    </span>
-
-                    <div>
-                        <strong>
-                            Add a course
-                        </strong>
-
-                        <small>
-                            Add a new course to your semester
-                        </small>
-                    </div>
-
-                </a>
-
-
-                <!-- Scanner -->
-
-                <a
-                    href="scanner.html"
-                    class="quick-action"
-                >
-
-                    <span class="quick-icon">
-                        📄
-                    </span>
-
-                    <div>
-                        <strong>
-                            Scan a notice
-                        </strong>
-
-                        <small>
-                            Extract dates and tasks from notices
-                        </small>
-                    </div>
-
-                </a>
-
-
-                <!-- Calendar -->
-
-                <a
-                    href="calendar.html"
-                    class="quick-action"
-                >
-
-                    <span class="quick-icon">
-                        📅
-                    </span>
-
-                    <div>
-                        <strong>
-                            Open calendar
-                        </strong>
-
-                        <small>
-                            View your academic schedule
-                        </small>
-                    </div>
-
-                </a>
-
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             AI ASSISTANT PREVIEW
-             ================================================= -->
-
-        <section class="ai-card">
-
-            <div class="ai-icon">
-                ✨
-            </div>
-
-            <div class="ai-content">
-
-                <span class="eyebrow">
-                    UNIFLOW AI
-                </span>
-
-                <h2>
-                    Your academic day, simplified.
-                </h2>
-
-                <p>
-                    UniFlow will eventually analyze your courses,
-                    deadlines and notices to create a personalized
-                    daily action plan for you.
-                </p>
-
-            </div>
-
-            <a
-                href="scanner.html"
-                class="ai-button"
-            >
-                Try Notice AI →
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTENT BODY -->
+      <main class="content-body">
+
+        <!-- AI Academic Plan Banner -->
+        <div class="ai-action-banner">
+          <div class="ai-pill">✨ AI Academic Plan</div>
+          <h2 id="aiBannerHeadline">Calculating daily plan...</h2>
+          <p id="aiBannerFocus">Loading your course recommendations...</p>
+          <div class="banner-buttons">
+            <a href="scanner.html" class="btn btn-white">
+              <span>📄</span> Scan New Notice
             </a>
+            <a href="calendar.html" class="btn btn-ghost-white">
+              <span>📅</span> View Smart Calendar
+            </a>
+          </div>
+        </div>
 
-        </section>
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="card metric-card">
+            <div class="metric-icon" style="background: #eff6ff; color: #2563eb;">📚</div>
+            <div>
+              <div class="metric-title">Enrolled Courses</div>
+              <div id="metricCoursesCount" class="metric-value">0</div>
+            </div>
+          </div>
 
+          <div class="card metric-card">
+            <div class="metric-icon" style="background: #fef2f2; color: #ef4444;">⏰</div>
+            <div>
+              <div class="metric-title">Due This Week</div>
+              <div id="metricDueThisWeek" class="metric-value">0</div>
+            </div>
+          </div>
 
-        <!-- =================================================
-             FOOTER
-             ================================================= -->
+          <div class="card metric-card">
+            <div class="metric-icon" style="background: #ecfdf5; color: #10b981;">✅</div>
+            <div>
+              <div class="metric-title">Pending Tasks</div>
+              <div id="metricPending" class="metric-value">0</div>
+            </div>
+          </div>
 
-        <footer class="footer">
+          <div class="card metric-card">
+            <div class="metric-icon" style="background: #fdf4ff; color: #c026d3;">🎯</div>
+            <div>
+              <div class="metric-title">Upcoming Tests / CT</div>
+              <div id="metricUpcomingCts" class="metric-value">0</div>
+            </div>
+          </div>
+        </div>
 
-            <p>
-                © 2026 UniFlow · Intelligent University Life
-                Operating System
-            </p>
+        <!-- Split 2-Column: Checklist + Mini Courses -->
+        <div class="split-2col">
+          
+          <!-- Left: Action Checklist -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div>
+                <h3 style="font-size: 1.15rem; font-weight: 800;">Today's Action Items</h3>
+                <p style="font-size: 0.8rem; color: #64748b;">Urgent deadlines prioritized for maximum grade impact</p>
+              </div>
+              <a href="tasks.html" class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;">View All Tasks →</a>
+            </div>
 
-        </footer>
+            <div id="dashboardChecklist">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+          </div>
 
-    </main>
+          <!-- Right: Enrolled Courses Widget -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <h3 style="font-size: 1.05rem; font-weight: 800;">Your Courses</h3>
+              <a href="courses.html" style="color: #2563eb; font-size: 0.8rem; font-weight: 700; text-decoration: none;">Manage</a>
+            </div>
 
+            <div id="dashboardCoursesMini">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+          </div>
 
-    <!-- =====================================================
-         UNIFLOW JAVASCRIPT
-         ===================================================== -->
+        </div>
 
-    <script src="app.js"></script>
+      </main>
+    </div>
 
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

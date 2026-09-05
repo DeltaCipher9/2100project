@@ -1,551 +1,940 @@
-/* =========================================================
-   UniFlow — shared app engine
-   Data lives in localStorage so it persists between pages
-   (this is a front-end prototype: no server, no real AI yet —
-   see comments marked REPLACE-LATER for where a backend/AI
-   service would eventually plug in)
-   ========================================================= */
+/**
+ * UniFlow - Intelligent University Life Operating System
+ * FULL JAVASCRIPT ENGINE (app.js)
+ * 
+ * Features:
+ * 1. UniFlowStore: LocalStorage-backed state persistence for courses, deadlines, notices & projects.
+ * 2. AIEngine: Daily action planner ("3 assignments + 1 lab this week") & Notice NLP regex extractor.
+ * 3. CalendarEngine: Dynamic monthly calendar matrix with deadline event badges.
+ * 4. Page Initializers: Automatically renders and handles events on each individual page.
+ */
 
-const UF = {
-  KEYS:{courses:'uf_courses', tasks:'uf_tasks', projects:'uf_projects', seeded:'uf_seeded'},
-
-  /* ---------- date helpers ---------- */
-  todayISO(){ return new Date().toISOString().slice(0,10); },
-  addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); },
-  daysUntil(iso){
-    const d1=new Date(new Date().toDateString());
-    const d2=new Date(iso);
-    return Math.round((d2-d1)/86400000);
-  },
-  fmt(iso){
-    const d=new Date(iso);
-    return d.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'});
-  },
-
-  /* ---------- storage ---------- */
-  load(key){ try{ return JSON.parse(localStorage.getItem(key)) || null; }catch(e){ return null; } },
-  save(key,val){ localStorage.setItem(key, JSON.stringify(val)); },
-
-  getCourses(){ return this.load(this.KEYS.courses) || []; },
-  setCourses(c){ this.save(this.KEYS.courses, c); },
-  getTasks(){ return this.load(this.KEYS.tasks) || []; },
-  setTasks(t){ this.save(this.KEYS.tasks, t); },
-  getProjects(){ return this.load(this.KEYS.projects) || []; },
-  setProjects(p){ this.save(this.KEYS.projects, p); },
-
-  uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); },
-
-  /* ---------- seed sample data on first run ---------- */
-  seed(){
-    if(this.load(this.KEYS.seeded)) return;
-    this.setCourses([
-      {code:'CSE 2102', name:'Discrete Mathematics Sessional', professor:'Dr. Rahman', room:'CSE-304', credits:1.5, progress:70},
-      {code:'CSE 2103', name:'Digital Logic Design', professor:'Dr. Islam', room:'CSE-201', credits:3, progress:45},
-      {code:'EEE 2151', name:'Electrical Machines I', professor:'Dr. Karim', room:'EEE-102', credits:3, progress:30},
-      {code:'CSE 2101', name:'Discrete Mathematics', professor:'Dr. Rahman', room:'CSE-304', credits:3, progress:85},
-    ]);
-    this.setTasks([
-      {id:this.uid(), name:'Submit Discrete Math Sessional lab report', course:'CSE 2102', due:this.addDays(1), priority:'high', done:false, completedAt:null},
-      {id:this.uid(), name:'Prepare for Electrical Machines CT-1', course:'EEE 2151', due:this.addDays(3), priority:'high', done:false, completedAt:null},
-      {id:this.uid(), name:'Finish Digital Logic Design assignment 2', course:'CSE 2103', due:this.addDays(4), priority:'mid', done:false, completedAt:null},
-      {id:this.uid(), name:'Digital Logic lab — flip-flop circuit', course:'CSE 2103', due:this.addDays(5), priority:'mid', done:false, completedAt:null},
-      {id:this.uid(), name:'Read Ch.4: modular arithmetic before class', course:'CSE 2101', due:this.addDays(6), priority:'low', done:false, completedAt:null},
-      {id:this.uid(), name:'Submit Physics lab viva prep', course:'CSE 2101', due:this.addDays(-2), priority:'high', done:true, completedAt:this.addDays(-2)},
-      {id:this.uid(), name:'OOP assignment 1', course:'CSE 2102', due:this.addDays(-5), priority:'mid', done:true, completedAt:this.addDays(-4)},
-      {id:this.uid(), name:'Coordinate Geometry problem set', course:'CSE 2101', due:this.addDays(-6), priority:'low', done:true, completedAt:this.addDays(-6)},
-    ]);
-    this.setProjects([
-      {id:this.uid(), name:'SafeRoute BD — IEEE WIE poster',
-        columns:{
-          todo:[{id:this.uid(), text:'Draft poster layout', who:'Arshi'}, {id:this.uid(), text:'Collect sustainability references', who:'Nabila'}],
-          inprogress:[{id:this.uid(), text:'Write problem statement section', who:'Arshi'}],
-          done:[{id:this.uid(), text:'Finalize project title', who:'Team'}]
-        }}
-    ]);
-    this.save(this.KEYS.seeded, true);
-  },
-
-  /* ---------- priority / badge helpers ---------- */
-  badgeFor(due){
-    const d = this.daysUntil(due);
-    if(d<=2) return {cls:'high', label: d<0 ? 'Overdue' : 'Due soon'};
-    if(d<=5) return {cls:'mid', label:'This week'};
-    return {cls:'low', label:'Flexible'};
-  },
-
-  /* ---------- sidebar ---------- */
-  NAV:[
-    {href:'index.html', label:'Dashboard'},
-    {href:'scanner.html', label:'Notice & PDF AI'},
-    {href:'calendar.html', label:'Smart Calendar'},
-    {href:'courses.html', label:'Course Hub'},
-    {href:'tasks.html', label:'Assignments & Tests'},
-    {href:'projects.html', label:'Group Projects'},
-    {href:'analytics.html', label:'Study Analytics'},
-  ],
-  injectSidebar(){
-    const mount = document.getElementById('sidebar-mount');
-    if(!mount) return;
-    let active = location.pathname.split('/').pop();
-    if(!active) active = 'index.html';
-    const links = this.NAV.map(n=>
-      `<a href="${n.href}" class="${n.href===active?'active':''}">${n.label}</a>`
-    ).join('');
-    mount.innerHTML = `
-      <aside class="side">
-        <div class="brand">Uni<span>Flow</span></div>
-        <nav>${links}</nav>
-        <div class="side-foot">Signed in as<br><strong style="color:#fff;">Arshi · CSE, RUET</strong></div>
-      </aside>`;
+// =============================================================================
+// 1. DATA STORE (LocalStorage with Realistic Fallback Seeds)
+// =============================================================================
+const UniFlowStore = {
+  // Initial demo seed data
+  defaultData: {
+    courses: [
+      { id: "c1", code: "CSE 301", name: "Database Management Systems", instructor: "Dr. Alan Turing", room: "Room 402", credits: 3, schedule: "Mon, Wed 10:00 AM", color: "#2563eb" },
+      { id: "c2", code: "MAT 202", name: "Discrete Mathematics & Logic", instructor: "Prof. Ada Lovelace", room: "Room 205", credits: 3, schedule: "Tue, Thu 02:00 PM", color: "#7c3aed" },
+      { id: "c3", code: "PHY 105", name: "Applied Physics Lab", instructor: "Dr. Richard Feynman", room: "Physics Lab B", credits: 2, schedule: "Wed 02:00 PM", color: "#10b981" },
+      { id: "c4", code: "ENG 101", name: "Academic Communication", instructor: "Ms. Virginia Woolf", room: "Room 108", credits: 2, schedule: "Sun 11:30 AM", color: "#f59e0b" }
+    ],
+    tasks: [
+      {
+        id: "t1",
+        courseCode: "CSE 301",
+        title: "Assignment 2: Schema Normalization & SQL Queries",
+        type: "Assignment",
+        dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: "High",
+        status: "in_progress",
+        description: "Complete questions 1 to 8 on BCNF decomposition."
+      },
+      {
+        id: "t2",
+        courseCode: "MAT 202",
+        title: "Class Test 1 (CT): Propositional Logic",
+        type: "CT",
+        dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: "Urgent",
+        status: "pending",
+        description: "CT covering Chapter 1 and Chapter 2."
+      },
+      {
+        id: "t3",
+        courseCode: "PHY 105",
+        title: "Lab Report 3: Determination of Planck's Constant",
+        type: "Lab",
+        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: "Medium",
+        status: "pending",
+        description: "Format experimental graphs according to guidelines."
+      },
+      {
+        id: "t4",
+        courseCode: "ENG 101",
+        title: "Draft Research Proposal Review",
+        type: "Assignment",
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: "Low",
+        status: "pending",
+        description: "Peer review two classmates' draft proposals."
+      },
+      {
+        id: "t5",
+        courseCode: "CSE 301",
+        title: "Midterm Examination",
+        type: "Exam",
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: "Urgent",
+        status: "pending",
+        description: "Comprehensive written exam covering Modules 1 to 3."
+      }
+    ],
+    projects: [
+      {
+        id: "p1",
+        courseCode: "CSE 301",
+        title: "Smart Campus Shuttle Tracker Web App",
+        description: "Group term project building a real-time shuttle locator using Leaflet.js and Express.",
+        deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        members: ["You (Lead)", "Rahim", "Karim", "Sara"],
+        tasks: [
+          { id: "pt1", title: "Design database ER schema", assignee: "You (Lead)", status: "completed" },
+          { id: "pt2", title: "Build GPS REST endpoints", assignee: "Rahim", status: "in_progress" },
+          { id: "pt3", title: "Frontend map UI component", assignee: "Karim", status: "pending" },
+          { id: "pt4", title: "User testing & slides", assignee: "Sara", status: "pending" }
+        ]
+      }
+    ]
   },
 
-  init(){
-    this.seed();
-    this.injectSidebar();
+  getData() {
+    const raw = localStorage.getItem('uniflow_storage');
+    if (!raw) {
+      this.saveData(this.defaultData);
+      return this.defaultData;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return this.defaultData;
+    }
+  },
+
+  saveData(data) {
+    localStorage.setItem('uniflow_storage', JSON.stringify(data));
+  },
+
+  // Courses
+  getCourses() {
+    return this.getData().courses || [];
+  },
+
+  addCourse(course) {
+    const data = this.getData();
+    const newCourse = { id: "c_" + Date.now(), ...course };
+    data.courses.push(newCourse);
+    this.saveData(data);
+    return newCourse;
+  },
+
+  deleteCourse(id) {
+    const data = this.getData();
+    data.courses = data.courses.filter(c => c.id !== id);
+    this.saveData(data);
+  },
+
+  // Tasks
+  getTasks() {
+    const tasks = this.getData().tasks || [];
+    return tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  },
+
+  addTask(task) {
+    const data = this.getData();
+    const newTask = {
+      id: "t_" + Date.now(),
+      status: "pending",
+      priority: task.priority || "Medium",
+      ...task
+    };
+    data.tasks.push(newTask);
+    this.saveData(data);
+    return newTask;
+  },
+
+  addTasksBatch(tasksArray) {
+    const data = this.getData();
+    const added = tasksArray.map(t => ({
+      id: "t_" + Math.random().toString(36).substr(2, 9),
+      status: "pending",
+      priority: t.priority || "Medium",
+      ...t
+    }));
+    data.tasks.push(...added);
+    this.saveData(data);
+    return added;
+  },
+
+  updateTask(id, updates) {
+    const data = this.getData();
+    const index = data.tasks.findIndex(t => t.id === id);
+    if (index !== -1) {
+      data.tasks[index] = { ...data.tasks[index], ...updates };
+      this.saveData(data);
+      return data.tasks[index];
+    }
+    return null;
+  },
+
+  deleteTask(id) {
+    const data = this.getData();
+    data.tasks = data.tasks.filter(t => t.id !== id);
+    this.saveData(data);
+  },
+
+  // Projects
+  getProjects() {
+    return this.getData().projects || [];
+  },
+
+  addProject(project) {
+    const data = this.getData();
+    const newProj = {
+      id: "p_" + Date.now(),
+      tasks: [],
+      ...project
+    };
+    data.projects.push(newProj);
+    this.saveData(data);
+    return newProj;
+  },
+
+  addSubtask(projectId, subtask) {
+    const data = this.getData();
+    const proj = data.projects.find(p => p.id === projectId);
+    if (proj) {
+      const newSub = {
+        id: "pt_" + Date.now(),
+        status: "pending",
+        ...subtask
+      };
+      proj.tasks.push(newSub);
+      this.saveData(data);
+      return newSub;
+    }
+  },
+
+  toggleSubtask(projectId, subtaskId) {
+    const data = this.getData();
+    const proj = data.projects.find(p => p.id === projectId);
+    if (proj) {
+      const task = proj.tasks.find(t => t.id === subtaskId);
+      if (task) {
+        task.status = task.status === 'completed' ? 'pending' : 'completed';
+        this.saveData(data);
+      }
+    }
   }
 };
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  UF.init();
-  const page = document.body.dataset.page;
-  if(page==='dashboard') renderDashboard();
-  if(page==='scanner') renderScanner();
-  if(page==='calendar') renderCalendar();
-  if(page==='courses') renderCourses();
-  if(page==='tasks') renderTasks();
-  if(page==='projects') renderProjects();
-  if(page==='analytics') renderAnalytics();
-});
+// =============================================================================
+// 2. AI ENGINE: DAILY ACTION PLANNER & NLP NOTICE EXTRACTOR
+// =============================================================================
+const AIEngine = {
+  // Generates Daily Action Plan Summary
+  generateDailyActionPlan() {
+    const tasks = UniFlowStore.getTasks().filter(t => t.status !== 'completed');
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-/* =========================================================
-   DASHBOARD — AI daily/weekly action plan
-   ========================================================= */
-function renderDashboard(){
-  const tasks = UF.getTasks();
-  const courses = UF.getCourses();
-  const upcoming = tasks.filter(t=>!t.done && UF.daysUntil(t.due) <= 7)
-                         .sort((a,b)=> new Date(a.due)-new Date(b.due));
+    let dueToday = [];
+    let dueIn3Days = [];
+    let dueThisWeek = [];
 
-  document.getElementById('hero-line').textContent =
-    upcoming.length ? summarizePlan(upcoming) : 'Nothing urgent — you\'re clear for the week.';
+    let assignments = 0;
+    let labs = 0;
+    let cts = 0;
+    let exams = 0;
 
-  document.getElementById('stat-due').textContent = upcoming.length;
-  document.getElementById('stat-courses').textContent = courses.length;
-  const projects = UF.getProjects();
-  const pending = projects.reduce((n,p)=> n + p.columns.todo.length + p.columns.inprogress.length, 0);
-  document.getElementById('stat-group').textContent = pending;
+    tasks.forEach(t => {
+      const due = new Date(t.dueDate);
+      due.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
 
-  const list = document.getElementById('tasklist');
-  list.innerHTML = upcoming.length ? '' : '<p class="empty-note">No tasks due in the next 7 days.</p>';
-  upcoming.forEach(t=>{
-    const b = UF.badgeFor(t.due);
-    const row = document.createElement('div');
-    row.className = 'task';
-    row.innerHTML = `
-      <input type="checkbox" ${t.done?'checked':''}>
-      <div style="flex:1;">
-        <div class="t-name">${escapeHtml(t.name)}</div>
-        <div class="t-course">${escapeHtml(t.course)} · ${UF.fmt(t.due)}</div>
-      </div>
-      <span class="badge ${b.cls}">${b.label}</span>`;
-    row.querySelector('input').addEventListener('change', (e)=>{
-      toggleTaskDone(t.id, e.target.checked);
-      renderDashboard();
+      if (diffDays <= 0) dueToday.push(t);
+      else if (diffDays <= 3) dueIn3Days.push(t);
+
+      if (diffDays <= 7) {
+        dueThisWeek.push(t);
+        const type = (t.type || '').toLowerCase();
+        if (type.includes('assignment')) assignments++;
+        else if (type.includes('lab')) labs++;
+        else if (type.includes('ct') || type.includes('quiz')) cts++;
+        else if (type.includes('exam')) exams++;
+      }
     });
-    list.appendChild(row);
-  });
 
-  const grid = document.getElementById('mini-courses');
-  grid.innerHTML = '';
-  courses.slice(0,3).forEach(c=>{
-    const next = tasks.filter(t=>!t.done && t.course===c.code).sort((a,b)=>new Date(a.due)-new Date(b.due))[0];
-    grid.innerHTML += `
-      <div class="course">
-        <div class="code">${escapeHtml(c.code)}</div>
-        <h3>${escapeHtml(c.name)}</h3>
-        <div class="next">${next ? 'Next: '+escapeHtml(next.name)+' — '+UF.fmt(next.due) : 'Nothing pending'}</div>
-        <div class="bar"><div style="width:${c.progress}%;"></div></div>
-      </div>`;
-  });
-}
+    const parts = [];
+    if (assignments > 0) parts.push(`${assignments} assignment${assignments > 1 ? 's' : ''}`);
+    if (labs > 0) parts.push(`${labs} lab${labs > 1 ? 's' : ''}`);
+    if (cts > 0) parts.push(`${cts} CT preparation${cts > 1 ? 's' : ''}`);
+    if (exams > 0) parts.push(`${exams} exam${exams > 1 ? 's' : ''}`);
 
-function summarizePlan(upcoming){
-  const byType = {assignment:0, lab:0, test:0, other:0};
-  upcoming.forEach(t=>{
-    const n = t.name.toLowerCase();
-    if(n.includes('ct')||n.includes('test')||n.includes('exam')) byType.test++;
-    else if(n.includes('lab')) byType.lab++;
-    else if(n.includes('assignment')||n.includes('report')||n.includes('submit')) byType.assignment++;
-    else byType.other++;
-  });
-  const parts=[];
-  if(byType.assignment) parts.push(byType.assignment+' assignment'+(byType.assignment>1?'s':''));
-  if(byType.lab) parts.push(byType.lab+' lab'+(byType.lab>1?'s':''));
-  if(byType.test) parts.push(byType.test+' test'+(byType.test>1?'s':'')+' to prepare for');
-  if(byType.other) parts.push(byType.other+' other item'+(byType.other>1?'s':''));
-  return (parts.join(', ')+' this week.').replace(/^./,c=>c.toUpperCase());
-}
+    const workloadSummary = parts.length > 0
+      ? parts.join(' + ') + ' this week'
+      : 'All caught up! No urgent university deadlines this week.';
 
-function toggleTaskDone(id, done){
-  const tasks = UF.getTasks();
-  const t = tasks.find(x=>x.id===id);
-  if(!t) return;
-  t.done = done;
-  t.completedAt = done ? UF.todayISO() : null;
-  UF.setTasks(tasks);
-}
+    const topTask = dueToday[0] || dueIn3Days[0] || dueThisWeek[0];
+    const recommendation = topTask
+      ? `Focus on '${topTask.title}' for ${topTask.courseCode}. It has high urgency and is due on ${topTask.dueDate}.`
+      : 'Great job! You have no immediate deadlines. Use this time to read course notes or advance group projects.';
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+    return {
+      workloadSummary,
+      recommendation,
+      topTask,
+      stats: {
+        totalPending: tasks.length,
+        dueThisWeek: dueThisWeek.length,
+        assignments,
+        labs,
+        cts,
+        exams
+      },
+      actionList: [...dueToday, ...dueIn3Days, ...dueThisWeek.filter(t => !dueToday.includes(t) && !dueIn3Days.includes(t))]
+    };
+  },
 
-/* =========================================================
-   SCANNER — notice / PDF text "AI" date extraction
-   REPLACE-LATER: swap parseNoticeText() for a real OCR + NLP
-   service call once you have a backend.
-   ========================================================= */
-const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  // NLP Heuristic Notice Parser
+  extractDeadlinesFromText(text) {
+    const chunks = text.match(/[^.!?\n]+[.!?\n]+/g) || text.split(/\r?\n/);
+    const extracted = [];
 
-function parseNoticeText(text){
-  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const found = [];
-  const monthRe = new RegExp('\\b('+MONTHS.join('|')+')\\b\\s+(\\d{1,2})', 'i');
-  const numRe = /\b(\d{1,2})[\/\-](\d{1,2})\b/;
-  lines.forEach(line=>{
-    let due = null;
-    const m1 = line.match(monthRe);
-    const m2 = line.match(numRe);
-    const year = new Date().getFullYear();
-    if(m1){
-      const monthIdx = MONTHS.indexOf(m1[1].toLowerCase());
-      const day = parseInt(m1[2],10);
-      const d = new Date(year, monthIdx, day);
-      due = d.toISOString().slice(0,10);
-    } else if(m2){
-      const day = parseInt(m2[1],10), month = parseInt(m2[2],10)-1;
-      const d = new Date(year, month, day);
-      due = d.toISOString().slice(0,10);
-    }
-    const keyword = /(due|deadline|submit|ct[\s-]?\d|exam|test|assignment|lab|quiz|viva|class\s*(moved|resched))/i.test(line);
-    if(due || keyword){
-      found.push({ text: line, due: due || UF.addDays(7) });
-    }
-  });
-  return found;
-}
-
-function renderScanner(){
-  document.getElementById('sample-btn').addEventListener('click', ()=>{
-    const samples = [
-      {text:'CT-1, Electrical Machines I — Tuesday, 9 September, 9:00 AM', due:UF.addDays(3)},
-      {text:'Lab report deadline, Discrete Math Sessional — Saturday, 11:59 PM', due:UF.addDays(1)},
-      {text:'Class rescheduled: Digital Logic Design moved to Room 405', due:UF.addDays(0)},
+    const courseRegex = /\b([A-Z]{2,4})[\s-]?(\d{3})\b/gi;
+    const typePatterns = [
+      { regex: /\b(assignment|homework|hw|problem\s?set)\b/i, type: "Assignment" },
+      { regex: /\b(class\s?test|c\.?t\.?|quiz|assessment)\b/i, type: "CT" },
+      { regex: /\b(lab\s?report|experiment|lab)\b/i, type: "Lab" },
+      { regex: /\b(midterm|final\s?exam|semester\s?final|exam)\b/i, type: "Exam" }
     ];
-    showExtracted(samples, 'General');
-  });
 
-  document.getElementById('extract-btn').addEventListener('click', ()=>{
-    const text = document.getElementById('notice-input').value;
-    if(!text.trim()) return;
-    const results = parseNoticeText(text);
-    if(!results.length){
-      document.getElementById('extracted').innerHTML = '<p class="empty-note">No dates or task-like lines found — try pasting a notice with a date or a word like "deadline" / "CT" / "exam".</p>';
+    const standardDateRegex = /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[.\s]+(\d{1,2})(?:st|nd|rd|th)?(?:,\s*(\d{4}))?\b/i;
+    const isoDateRegex = /\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/;
+
+    const monthMap = {
+      jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+      jul: '07', aug: '08', sep: '09', sept: '09', oct: '10', nov: '11', dec: '12',
+      january: '01', february: '02', march: '03', april: '04', june: '06',
+      july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
+    };
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    for (const chunk of chunks) {
+      const clean = chunk.trim();
+      if (clean.length < 8) continue;
+
+      let detectedType = null;
+      for (const p of typePatterns) {
+        if (p.regex.test(clean)) {
+          detectedType = p.type;
+          break;
+        }
+      }
+
+      const courseMatch = clean.match(courseRegex);
+      const detectedCourse = courseMatch ? courseMatch[0].toUpperCase().replace('-', ' ') : null;
+
+      let detectedDate = null;
+      const stdMatch = clean.match(standardDateRegex);
+      const isoMatch = clean.match(isoDateRegex);
+
+      if (stdMatch) {
+        const monthKey = stdMatch[1].toLowerCase().replace('.', '');
+        const monthNum = monthMap[monthKey] || '01';
+        const day = String(parseInt(stdMatch[2], 10)).padStart(2, '0');
+        const year = stdMatch[3] ? stdMatch[3] : currentYear;
+        detectedDate = `${year}-${monthNum}-${day}`;
+      } else if (isoMatch) {
+        detectedDate = `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-${String(isoMatch[3]).padStart(2, '0')}`;
+      } else if (/tomorrow/i.test(clean)) {
+        const d = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        detectedDate = d.toISOString().split('T')[0];
+      } else if (/next week|friday/i.test(clean)) {
+        const d = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
+        detectedDate = d.toISOString().split('T')[0];
+      }
+
+      if (detectedType || (detectedCourse && detectedDate) || (detectedDate && /due|submit|held|exam/i.test(clean))) {
+        let title = clean.replace(/^(dear students|notice|announcement)[:,-]?\s*/i, '').trim();
+        if (title.length > 80) title = title.substring(0, 77) + '...';
+
+        let priority = "Medium";
+        if (/strict|urgent|mandatory|exam|midterm/i.test(clean)) priority = "Urgent";
+        else if (detectedType === "Assignment" || detectedType === "CT") priority = "High";
+
+        extracted.push({
+          title: title || `${detectedCourse || 'Academic'} ${detectedType || 'Task'}`,
+          courseCode: detectedCourse || "General",
+          type: detectedType || "Assignment",
+          dueDate: detectedDate || new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          priority
+        });
+      }
+    }
+
+    return extracted;
+  }
+};
+
+// =============================================================================
+// 3. COMMON PAGE HELPERS (Header, Active Nav, Notification Count)
+// =============================================================================
+function initCommonUI() {
+  // Update Notification Badge Count (< 3 days due)
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const urgentCount = UniFlowStore.getTasks().filter(t => {
+    if (t.status === 'completed') return false;
+    const due = new Date(t.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+    return diff <= 3;
+  }).length;
+
+  const badgeEl = document.querySelector('.notification-badge');
+  if (badgeEl) {
+    badgeEl.textContent = urgentCount;
+    badgeEl.style.display = urgentCount > 0 ? 'flex' : 'none';
+  }
+
+  // Update current active link in sidebar
+  const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+  document.querySelectorAll('.nav-item').forEach(link => {
+    const href = link.getAttribute('href');
+    if (href === currentPage || (currentPage === '' && href === 'index.html')) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
+}
+
+// =============================================================================
+// 4. PAGE INITIALIZERS
+// =============================================================================
+
+// --- PAGE: Dashboard (index.html) ---
+function initDashboardPage() {
+  const plan = AIEngine.generateDailyActionPlan();
+
+  // Populate AI Banner
+  const bannerHeadline = document.getElementById('aiBannerHeadline');
+  const bannerFocus = document.getElementById('aiBannerFocus');
+  if (bannerHeadline) bannerHeadline.textContent = plan.workloadSummary;
+  if (bannerFocus) bannerFocus.textContent = plan.recommendation;
+
+  // Populate Metrics
+  const courses = UniFlowStore.getCourses();
+  const elCoursesCount = document.getElementById('metricCoursesCount');
+  const elDueWeek = document.getElementById('metricDueThisWeek');
+  const elPending = document.getElementById('metricPending');
+  const elCts = document.getElementById('metricUpcomingCts');
+
+  if (elCoursesCount) elCoursesCount.textContent = courses.length;
+  if (elDueWeek) elDueWeek.textContent = plan.stats.dueThisWeek;
+  if (elPending) elPending.textContent = plan.stats.totalPending;
+  if (elCts) elCts.textContent = plan.stats.cts;
+
+  // Render Action Checklist
+  const checklistContainer = document.getElementById('dashboardChecklist');
+  if (checklistContainer) {
+    if (plan.actionList.length === 0) {
+      checklistContainer.innerHTML = `
+        <div style="text-align:center; padding: 32px; color: #94a3b8;">
+          <div style="font-size: 2rem;">🎉</div>
+          <p style="font-weight: 700; margin-top: 8px;">All tasks completed!</p>
+          <p style="font-size: 0.8rem;">You have zero urgent deadlines this week.</p>
+        </div>
+      `;
+    } else {
+      checklistContainer.innerHTML = plan.actionList.map(task => `
+        <div class="action-item ${task.status === 'completed' ? 'done' : ''}" id="item-${task.id}">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <input type="checkbox" class="task-checkbox" 
+                   ${task.status === 'completed' ? 'checked' : ''} 
+                   onchange="handleChecklistToggle('${task.id}', this)">
+            <div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                <span class="course-tag">${task.courseCode}</span>
+                <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
+                <span class="badge badge-${task.type.toLowerCase()}">${task.type}</span>
+              </div>
+              <div class="task-title" style="font-weight: 600; font-size: 0.92rem;">
+                ${task.title}
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 0.78rem; font-weight: 700; color: #ef4444;">
+            Due ${task.dueDate}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Render Courses Mini List
+  const miniCoursesContainer = document.getElementById('dashboardCoursesMini');
+  if (miniCoursesContainer) {
+    miniCoursesContainer.innerHTML = courses.slice(0, 4).map(c => `
+      <div style="padding: 10px 12px; border-left: 4px solid ${c.color || '#2563eb'}; background: #f8fafc; border-radius: 6px; margin-bottom: 8px;">
+        <div style="font-weight: 700; font-size: 0.85rem; color: #0f172a;">${c.code} - ${c.name}</div>
+        <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">${c.instructor} • ${c.schedule}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function handleChecklistToggle(taskId, checkbox) {
+  const newStatus = checkbox.checked ? 'completed' : 'pending';
+  UniFlowStore.updateTask(taskId, { status: newStatus });
+  const item = document.getElementById(`item-${taskId}`);
+  if (item) {
+    if (checkbox.checked) item.classList.add('done');
+    else item.classList.remove('done');
+  }
+  initCommonUI();
+}
+
+// --- PAGE: Notice Scanner (scanner.html) ---
+let extractedTasksCache = [];
+
+function loadSampleNoticeIntoScanner() {
+  const textarea = document.getElementById('scannerNoticeText');
+  if (textarea) {
+    textarea.value = 
+`Dear Students of 3rd Year,
+Please note the following critical course deadlines:
+1. CSE 301 Assignment 2 on Schema Normalization is due on September 15, 2026 at 11:59 PM.
+2. Class Test 1 (CT) for MAT 202 covering Propositional Logic will be held on September 18, 2026.
+3. PHY 105 Lab Report 3 on Planck's Constant is due next Friday.
+4. Midterm Examination for CSE 301 is scheduled for September 28, 2026.
+Late submissions will not be accepted.`;
+  }
+}
+
+function runNoticeExtraction() {
+  const textarea = document.getElementById('scannerNoticeText');
+  if (!textarea || !textarea.value.trim()) {
+    alert("Please paste a notice or click '⚡ Load Sample Notice' first!");
+    return;
+  }
+
+  const tasks = AIEngine.extractDeadlinesFromText(textarea.value);
+  extractedTasksCache = tasks;
+
+  const resultContainer = document.getElementById('scannerResultsArea');
+  const listContainer = document.getElementById('extractedTasksList');
+  const countBadge = document.getElementById('extractedCountBadge');
+
+  if (resultContainer && listContainer) {
+    if (tasks.length === 0) {
+      alert("No dates or course deadlines found in this text. Try providing clearer dates like 'September 15'.");
+      resultContainer.style.display = 'none';
       return;
     }
-    showExtracted(results.map(r=>({text:r.text, due:r.due})), 'General');
-  });
+
+    resultContainer.style.display = 'block';
+    if (countBadge) countBadge.textContent = `${tasks.length} Deadlines Detected`;
+
+    listContainer.innerHTML = tasks.map((t, idx) => `
+      <div class="action-item" style="display: grid; grid-template-columns: 100px 1fr 120px 130px 40px; gap: 10px; align-items: center;">
+        <input type="text" class="form-control" value="${t.courseCode}" onchange="updateExtractedTask(${idx}, 'courseCode', this.value)" style="padding: 6px; font-weight: 700;">
+        <input type="text" class="form-control" value="${t.title}" onchange="updateExtractedTask(${idx}, 'title', this.value)" style="padding: 6px;">
+        <select class="form-control" onchange="updateExtractedTask(${idx}, 'type', this.value)" style="padding: 6px;">
+          <option ${t.type === 'Assignment' ? 'selected' : ''}>Assignment</option>
+          <option ${t.type === 'CT' ? 'selected' : ''}>CT</option>
+          <option ${t.type === 'Lab' ? 'selected' : ''}>Lab</option>
+          <option ${t.type === 'Exam' ? 'selected' : ''}>Exam</option>
+        </select>
+        <input type="date" class="form-control" value="${t.dueDate}" onchange="updateExtractedTask(${idx}, 'dueDate', this.value)" style="padding: 6px;">
+        <button class="btn btn-danger" style="padding: 6px; font-size: 0.8rem;" onclick="removeExtractedTask(${idx})">✕</button>
+      </div>
+    `).join('');
+  }
 }
 
-function showExtracted(items, course){
-  const box = document.getElementById('extracted');
-  box.innerHTML = '';
-  const tasks = UF.getTasks();
-  items.forEach((item,i)=>{
-    setTimeout(()=>{
-      const row = document.createElement('div');
-      row.className = 'row';
-      row.innerHTML = `<span class="tag">EXTRACTED</span> ${escapeHtml(item.text)} <span style="margin-left:auto;color:#6B7291;font-size:12px;">${UF.fmt(item.due)}</span>`;
-      box.appendChild(row);
-    }, i*400);
-    tasks.push({id:UF.uid(), name:item.text.slice(0,90), course, due:item.due, priority: UF.badgeFor(item.due).cls, done:false, completedAt:null});
-  });
-  UF.setTasks(tasks);
+function updateExtractedTask(index, field, value) {
+  if (extractedTasksCache[index]) {
+    extractedTasksCache[index][field] = value;
+  }
 }
 
-/* =========================================================
-   CALENDAR
-   ========================================================= */
-let calState = { year: new Date().getFullYear(), month: new Date().getMonth(), selected: UF.todayISO() };
-
-function renderCalendar(){
-  document.getElementById('cal-prev').addEventListener('click', ()=>{ shiftMonth(-1); });
-  document.getElementById('cal-next').addEventListener('click', ()=>{ shiftMonth(1); });
-  drawCalendar();
+function removeExtractedTask(index) {
+  extractedTasksCache.splice(index, 1);
+  const listContainer = document.getElementById('extractedTasksList');
+  if (listContainer) {
+    runNoticeExtraction();
+  }
 }
-function shiftMonth(n){
-  calState.month += n;
-  if(calState.month<0){ calState.month=11; calState.year--; }
-  if(calState.month>11){ calState.month=0; calState.year++; }
-  drawCalendar();
+
+function saveExtractedTasksToSchedule() {
+  if (extractedTasksCache.length === 0) return;
+  UniFlowStore.addTasksBatch(extractedTasksCache);
+  alert(`🎉 Successfully saved ${extractedTasksCache.length} tasks to your calendar & assignments schedule!`);
+  window.location.href = 'calendar.html';
 }
-function drawCalendar(){
-  const {year, month} = calState;
-  const first = new Date(year, month, 1);
-  const startDow = first.getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const label = first.toLocaleDateString('en-US',{month:'long', year:'numeric'});
-  document.getElementById('cal-label').textContent = label;
 
-  const tasks = UF.getTasks();
-  const grid = document.getElementById('cal-grid');
-  grid.innerHTML = '';
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{
-    grid.innerHTML += `<div class="cal-dow">${d}</div>`;
-  });
-  for(let i=0;i<startDow;i++) grid.innerHTML += '<div class="cal-cell empty"></div>';
+// --- PAGE: Smart Calendar (calendar.html) ---
+let calendarYear = new Date().getFullYear();
+let calendarMonth = new Date().getMonth();
 
-  for(let day=1; day<=daysInMonth; day++){
-    const iso = new Date(year, month, day).toISOString().slice(0,10);
-    const dayTasks = tasks.filter(t=>t.due===iso);
-    const isToday = iso===UF.todayISO();
-    const isSelected = iso===calState.selected;
-    const cell = document.createElement('div');
-    cell.className = 'cal-cell'+(isToday?' today':'')+(isSelected?' selected':'');
-    cell.innerHTML = `<div class="dnum">${day}</div>` + (dayTasks.length ? dayTasks.slice(0,3).map(()=>'<span class="dot"></span>').join('') : '');
-    cell.addEventListener('click', ()=>{ calState.selected = iso; drawCalendar(); });
-    grid.appendChild(cell);
+function initCalendarPage() {
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const titleEl = document.getElementById('calendarMonthYear');
+  if (titleEl) titleEl.textContent = `${monthNames[calendarMonth]} ${calendarYear}`;
+
+  const gridEl = document.getElementById('calendarGrid');
+  if (!gridEl) return;
+
+  const tasks = UniFlowStore.getTasks();
+  const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+  const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+  let html = '';
+  // Empty slots
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div style="min-height: 85px; background: #f8fafc40; border-radius: 8px;"></div>`;
   }
 
-  const dayTasks = tasks.filter(t=>t.due===calState.selected);
-  const dayBox = document.getElementById('day-tasks');
-  document.getElementById('day-tasks-title').textContent = UF.fmt(calState.selected);
-  dayBox.innerHTML = dayTasks.length ? '' : '<p class="empty-note">Nothing scheduled this day.</p>';
-  dayTasks.forEach(t=>{
-    const b = UF.badgeFor(t.due);
-    dayBox.innerHTML += `
-      <div class="task ${t.done?'done':''}">
-        <input type="checkbox" ${t.done?'checked':''} onchange="toggleTaskDone('${t.id}', this.checked); drawCalendar();">
-        <div style="flex:1;"><div class="t-name">${escapeHtml(t.name)}</div><div class="t-course">${escapeHtml(t.course)}</div></div>
-        <span class="badge ${b.cls}">${b.label}</span>
-      </div>`;
-  });
+  // Days
+  const todayStr = new Date().toISOString().split('T')[0];
+  for (let d = 1; d <= totalDays; d++) {
+    const formattedDate = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayTasks = tasks.filter(t => t.dueDate === formattedDate);
+    const isToday = formattedDate === todayStr;
+
+    html += `
+      <div class="card" onclick="selectCalendarDay('${formattedDate}')" 
+           style="min-height: 90px; padding: 8px; cursor: pointer; border-color: ${isToday ? '#2563eb' : '#e2e8f0'}; background: ${isToday ? '#eff6ff' : '#ffffff'}; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.82rem; color: ${isToday ? '#2563eb' : '#334155'};">
+          <span>${d}</span>
+          ${dayTasks.length > 0 ? `<span style="background: #e0e7ff; color: #3730a3; padding: 1px 6px; border-radius: 10px; font-size: 0.65rem;">${dayTasks.length}</span>` : ''}
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
+          ${dayTasks.slice(0, 2).map(t => `
+            <div style="font-size: 0.65rem; font-weight: 700; padding: 2px 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: ${t.type === 'Exam' ? '#fee2e2' : t.type === 'CT' ? '#fdf4ff' : '#eff6ff'}; color: ${t.type === 'Exam' ? '#dc2626' : t.type === 'CT' ? '#9333ea' : '#2563eb'};">
+              ${t.courseCode}: ${t.title}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  gridEl.innerHTML = html;
+  selectCalendarDay(todayStr);
 }
 
-/* =========================================================
-   COURSES
-   ========================================================= */
-function renderCourses(){
-  drawCourses();
-  document.getElementById('course-form').addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const courses = UF.getCourses();
-    courses.push({
-      code: document.getElementById('c-code').value.trim(),
-      name: document.getElementById('c-name').value.trim(),
-      professor: document.getElementById('c-prof').value.trim(),
-      room: document.getElementById('c-room').value.trim(),
-      credits: parseFloat(document.getElementById('c-credits').value) || 0,
-      progress: 0
-    });
-    UF.setCourses(courses);
-    e.target.reset();
-    drawCourses();
-  });
-}
-function drawCourses(){
-  const courses = UF.getCourses();
-  const grid = document.getElementById('courses-grid');
-  grid.innerHTML = '';
-  courses.forEach((c,idx)=>{
-    grid.innerHTML += `
-      <div class="course">
-        <button class="icon-btn" style="position:absolute;top:12px;right:12px;" onclick="deleteCourse(${idx})">✕</button>
-        <div class="code">${escapeHtml(c.code)}</div>
-        <h3>${escapeHtml(c.name)}</h3>
-        <div class="meta">${escapeHtml(c.professor||'—')} · Room ${escapeHtml(c.room||'—')} · ${c.credits} credits</div>
-        <div class="bar"><div style="width:${c.progress}%;"></div></div>
-      </div>`;
-  });
-}
-function deleteCourse(idx){
-  const courses = UF.getCourses();
-  courses.splice(idx,1);
-  UF.setCourses(courses);
-  drawCourses();
+function prevCalendarMonth() {
+  calendarMonth--;
+  if (calendarMonth < 0) {
+    calendarMonth = 11;
+    calendarYear--;
+  }
+  renderCalendar();
 }
 
-/* =========================================================
-   TASKS
-   ========================================================= */
-function renderTasks(){
-  populateCourseSelect('t-course');
-  populateCourseSelect('filter-course', true);
-  drawTasks();
-  document.getElementById('task-form').addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const tasks = UF.getTasks();
-    tasks.push({
-      id: UF.uid(),
-      name: document.getElementById('t-name').value.trim(),
-      course: document.getElementById('t-course').value,
-      due: document.getElementById('t-due').value || UF.todayISO(),
-      priority: document.getElementById('t-priority').value,
-      done:false, completedAt:null
-    });
-    UF.setTasks(tasks);
-    e.target.reset();
-    drawTasks();
-  });
-  document.getElementById('filter-course').addEventListener('change', drawTasks);
-  document.getElementById('filter-status').addEventListener('change', drawTasks);
-}
-function populateCourseSelect(id, withAll){
-  const sel = document.getElementById(id);
-  const courses = UF.getCourses();
-  sel.innerHTML = (withAll ? '<option value="">All courses</option>' : '') +
-    courses.map(c=>`<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)}</option>`).join('');
-}
-function drawTasks(){
-  let tasks = UF.getTasks().sort((a,b)=> new Date(a.due)-new Date(b.due));
-  const fc = document.getElementById('filter-course').value;
-  const fs = document.getElementById('filter-status').value;
-  if(fc) tasks = tasks.filter(t=>t.course===fc);
-  if(fs==='pending') tasks = tasks.filter(t=>!t.done);
-  if(fs==='done') tasks = tasks.filter(t=>t.done);
-
-  const tbody = document.getElementById('tasks-body');
-  tbody.innerHTML = tasks.length ? '' : '<tr><td colspan="5" class="empty-note">No tasks match this filter.</td></tr>';
-  tasks.forEach(t=>{
-    const b = UF.badgeFor(t.due);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input type="checkbox" ${t.done?'checked':''}> ${escapeHtml(t.name)}</td>
-      <td>${escapeHtml(t.course)}</td>
-      <td>${UF.fmt(t.due)}</td>
-      <td><span class="badge ${t.done?'low':b.cls}">${t.done?'Done':b.label}</span></td>
-      <td><button class="icon-btn" title="Delete">✕</button></td>`;
-    tr.querySelector('input').addEventListener('change', e=>{ toggleTaskDone(t.id, e.target.checked); drawTasks(); });
-    tr.querySelector('.icon-btn').addEventListener('click', ()=>{ deleteTask(t.id); });
-    tbody.appendChild(tr);
-  });
-}
-function deleteTask(id){
-  UF.setTasks(UF.getTasks().filter(t=>t.id!==id));
-  drawTasks();
+function nextCalendarMonth() {
+  calendarMonth++;
+  if (calendarMonth > 11) {
+    calendarMonth = 0;
+    calendarYear++;
+  }
+  renderCalendar();
 }
 
-/* =========================================================
-   PROJECTS — kanban
-   ========================================================= */
-function renderProjects(){
-  drawProjects();
-}
-function drawProjects(){
-  const projects = UF.getProjects();
-  const mount = document.getElementById('projects-mount');
-  mount.innerHTML = '';
-  const cols = ['todo','inprogress','done'];
-  const labels = {todo:'To do', inprogress:'In progress', done:'Done'};
-  const next = {todo:'inprogress', inprogress:'done', done:null};
+function selectCalendarDay(dateStr) {
+  const selectedLabel = document.getElementById('selectedDayLabel');
+  const detailsArea = document.getElementById('selectedDayTasksArea');
+  if (selectedLabel) selectedLabel.textContent = dateStr;
 
-  projects.forEach((p, pIdx)=>{
-    const section = document.createElement('section');
-    section.innerHTML = `<div class="sec-head"><h2>${escapeHtml(p.name)}</h2></div>`;
-    const kanban = document.createElement('div');
-    kanban.className = 'kanban';
-    cols.forEach(col=>{
-      const kcol = document.createElement('div');
-      kcol.className = 'kcol';
-      let cards = p.columns[col].map(card=>`
-        <div class="kcard">
-          ${escapeHtml(card.text)}
-          <div class="who"><span>${escapeHtml(card.who||'Unassigned')}</span>
-            <span>
-              ${next[col] ? `<button class="move" data-project="${pIdx}" data-col="${col}" data-card="${card.id}">Move →</button>` : ''}
-            </span>
+  if (detailsArea) {
+    const dayTasks = UniFlowStore.getTasks().filter(t => t.dueDate === dateStr);
+    if (dayTasks.length === 0) {
+      detailsArea.innerHTML = `<p style="font-size: 0.85rem; color: #94a3b8; text-align: center; padding: 24px;">No deadlines scheduled for this date.</p>`;
+    } else {
+      detailsArea.innerHTML = dayTasks.map(t => `
+        <div style="padding: 12px; border-radius: 8px; background: #f8fafc; border-left: 4px solid #2563eb; margin-bottom: 8px;">
+          <div style="display: flex; gap: 6px; margin-bottom: 4px;">
+            <span class="course-tag">${t.courseCode}</span>
+            <span class="badge badge-${t.type.toLowerCase()}">${t.type}</span>
           </div>
-        </div>`).join('');
-      kcol.innerHTML = `<h4>${labels[col]} <span>${p.columns[col].length}</span></h4>${cards}
-        <button class="add-card-btn" data-project="${pIdx}" data-col="${col}">+ Add card</button>`;
-      kanban.appendChild(kcol);
-    });
-    section.appendChild(kanban);
-    mount.appendChild(section);
-  });
-
-  mount.querySelectorAll('.add-card-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const text = prompt('Task description:');
-      if(!text) return;
-      const who = prompt('Assigned to:', 'Arshi') || 'Unassigned';
-      const projects = UF.getProjects();
-      projects[btn.dataset.project].columns[btn.dataset.col].push({id:UF.uid(), text, who});
-      UF.setProjects(projects);
-      drawProjects();
-    });
-  });
-  mount.querySelectorAll('.move').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const projects = UF.getProjects();
-      const p = projects[btn.dataset.project];
-      const col = btn.dataset.col;
-      const n = {todo:'inprogress', inprogress:'done'}[col];
-      const idx = p.columns[col].findIndex(c=>c.id===btn.dataset.card);
-      const [card] = p.columns[col].splice(idx,1);
-      p.columns[n].push(card);
-      UF.setProjects(projects);
-      drawProjects();
-    });
-  });
-}
-
-/* =========================================================
-   ANALYTICS
-   ========================================================= */
-function renderAnalytics(){
-  const tasks = UF.getTasks();
-  const courses = UF.getCourses();
-
-  const total = tasks.length || 1;
-  const done = tasks.filter(t=>t.done).length;
-  const overdueHigh = tasks.filter(t=>!t.done && UF.daysUntil(t.due)<=1).length;
-  const stress = Math.min(100, Math.round((overdueHigh*22) + ((total-done)/total)*40));
-  const meter = document.getElementById('stress-meter');
-  meter.style.width = stress+'%';
-  meter.style.background = stress>65 ? 'var(--red)' : stress>35 ? 'var(--amber)' : 'var(--green)';
-  document.getElementById('stress-label').textContent =
-    stress>65 ? 'High — several urgent items stacked up' :
-    stress>35 ? 'Moderate — manageable if you keep pace' :
-    'Low — you\'re on top of things';
-  document.getElementById('stress-pct').textContent = stress+'%';
-
-  document.getElementById('velocity-label').textContent = `${done} of ${tasks.length} tasks completed overall`;
-  const chart = document.getElementById('bar-chart');
-  chart.innerHTML = '';
-  const dayCounts = [0,0,0,0,0,0,0];
-  const dayLabels = [];
-  for(let i=6;i>=0;i--){
-    const d = new Date(); d.setDate(d.getDate()-i);
-    dayLabels.push(d.toLocaleDateString('en-US',{weekday:'short'}));
+          <div style="font-size: 0.88rem; font-weight: 700;">${t.title}</div>
+          ${t.description ? `<p style="font-size: 0.78rem; color: #64748b; margin-top: 4px;">${t.description}</p>` : ''}
+        </div>
+      `).join('');
+    }
   }
-  tasks.forEach(t=>{
-    if(!t.completedAt) return;
-    const diff = Math.round((new Date(new Date().toDateString()) - new Date(t.completedAt))/86400000);
-    if(diff>=0 && diff<7) dayCounts[6-diff]++;
-  });
-  const max = Math.max(1, ...dayCounts);
-  dayCounts.forEach((c,i)=>{
-    chart.innerHTML += `<div class="col"><div class="fill" style="height:${(c/max*100)||3}%;"></div><div class="lab">${dayLabels[i]}</div></div>`;
-  });
-
-  const cp = document.getElementById('course-progress');
-  cp.innerHTML = '';
-  courses.forEach(c=>{
-    cp.innerHTML += `
-      <div class="course-progress-row">
-        <div class="lbl">${escapeHtml(c.code)}</div>
-        <div class="bar"><div style="width:${c.progress}%;"></div></div>
-        <div style="width:32px;text-align:right;color:#6B7291;">${c.progress}%</div>
-      </div>`;
-  });
 }
+
+// --- PAGE: Courses Hub (courses.html) ---
+function initCoursesPage() {
+  renderCoursesList();
+}
+
+function renderCoursesList() {
+  const listEl = document.getElementById('coursesGrid');
+  if (!listEl) return;
+
+  const courses = UniFlowStore.getCourses();
+  const tasks = UniFlowStore.getTasks();
+
+  listEl.innerHTML = courses.map(c => {
+    const courseTasks = tasks.filter(t => t.courseCode === c.code && t.status !== 'completed');
+    return `
+      <div class="card" style="border-top: 5px solid ${c.color || '#2563eb'}; display: flex; flex-direction: column; justify-content: space-between; gap: 16px;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span class="course-tag" style="background: ${c.color || '#2563eb'}15; color: ${c.color || '#2563eb'}; font-size: 0.82rem;">${c.code}</span>
+            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">${c.credits} Credits</span>
+          </div>
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 12px;">${c.name}</h3>
+          <div style="font-size: 0.82rem; color: #475569; display: flex; flex-direction: column; gap: 6px;">
+            <div>👨‍🏫 <strong>Instructor:</strong> ${c.instructor || 'TBD'}</div>
+            <div>📍 <strong>Venue:</strong> ${c.room || 'TBD'}</div>
+            <div>⏰ <strong>Schedule:</strong> ${c.schedule || 'TBD'}</div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          <span style="font-size: 0.75rem; color: #2563eb; font-weight: 700;">${courseTasks.length} Pending Deadlines</span>
+          <button class="btn btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="removeCourse('${c.id}')">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function removeCourse(id) {
+  if (confirm("Are you sure you want to remove this course?")) {
+    UniFlowStore.deleteCourse(id);
+    renderCoursesList();
+    initCommonUI();
+  }
+}
+
+function handleAddCourseSubmit(e) {
+  e.preventDefault();
+  const code = document.getElementById('newCourseCode').value;
+  const name = document.getElementById('newCourseName').value;
+  const instructor = document.getElementById('newCourseInstructor').value;
+  const room = document.getElementById('newCourseRoom').value;
+  const credits = document.getElementById('newCourseCredits').value;
+  const schedule = document.getElementById('newCourseSchedule').value;
+
+  UniFlowStore.addCourse({ code, name, instructor, room, credits, schedule, color: '#2563eb' });
+  document.getElementById('addCourseDialog').close();
+  e.target.reset();
+  renderCoursesList();
+  initCommonUI();
+}
+
+// --- PAGE: Tasks & Deadlines (tasks.html) ---
+let currentTaskFilter = 'all';
+
+function initTasksPage() {
+  renderTasksList();
+}
+
+function setTaskFilter(filter) {
+  currentTaskFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    if (b.dataset.filter === filter) b.classList.add('btn-primary');
+    else b.classList.remove('btn-primary');
+  });
+  renderTasksList();
+}
+
+function renderTasksList() {
+  const container = document.getElementById('tasksListContainer');
+  if (!container) return;
+
+  let tasks = UniFlowStore.getTasks();
+  if (currentTaskFilter !== 'all') {
+    tasks = tasks.filter(t => t.status === currentTaskFilter || t.type.toLowerCase() === currentTaskFilter.toLowerCase());
+  }
+
+  if (tasks.length === 0) {
+    container.innerHTML = `<div class="card" style="text-align: center; padding: 40px; color: #94a3b8;">No tasks found in this view.</div>`;
+    return;
+  }
+
+  container.innerHTML = tasks.map(t => `
+    <div class="card action-item ${t.status === 'completed' ? 'done' : ''}" style="margin-bottom: 12px; padding: 18px 20px;">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <input type="checkbox" class="task-checkbox" ${t.status === 'completed' ? 'checked' : ''} onchange="handleTaskStatusChange('${t.id}', this)">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span class="course-tag">${t.courseCode}</span>
+            <span class="badge badge-${t.priority.toLowerCase()}">${t.priority}</span>
+            <span class="badge badge-${t.type.toLowerCase()}">${t.type}</span>
+          </div>
+          <h3 class="task-title" style="font-size: 1rem; font-weight: 700; color: #0f172a;">${t.title}</h3>
+          ${t.description ? `<p style="font-size: 0.82rem; color: #64748b; margin-top: 4px;">${t.description}</p>` : ''}
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">Due ${t.dueDate}</span>
+        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="removeTask('${t.id}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function handleTaskStatusChange(id, checkbox) {
+  UniFlowStore.updateTask(id, { status: checkbox.checked ? 'completed' : 'pending' });
+  renderTasksList();
+  initCommonUI();
+}
+
+function removeTask(id) {
+  UniFlowStore.deleteTask(id);
+  renderTasksList();
+  initCommonUI();
+}
+
+function handleAddTaskSubmit(e) {
+  e.preventDefault();
+  const title = document.getElementById('taskTitle').value;
+  const courseCode = document.getElementById('taskCourse').value;
+  const type = document.getElementById('taskType').value;
+  const dueDate = document.getElementById('taskDueDate').value;
+  const priority = document.getElementById('taskPriority').value;
+  const description = document.getElementById('taskDesc').value;
+
+  UniFlowStore.addTask({ title, courseCode, type, dueDate, priority, description });
+  document.getElementById('addTaskDialog').close();
+  e.target.reset();
+  renderTasksList();
+  initCommonUI();
+}
+
+// --- PAGE: Group Projects (projects.html) ---
+function initProjectsPage() {
+  renderProjectsList();
+}
+
+function renderProjectsList() {
+  const container = document.getElementById('projectsContainer');
+  if (!container) return;
+
+  const projects = UniFlowStore.getProjects();
+  container.innerHTML = projects.map(p => {
+    const completed = p.tasks.filter(t => t.status === 'completed').length;
+    const total = p.tasks.length;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return `
+      <div class="card" style="margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span class="course-tag">${p.courseCode}</span>
+          <span style="font-size: 0.85rem; font-weight: 800; color: #10b981;">${pct}% Completed</span>
+        </div>
+        <h2 style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">${p.title}</h2>
+        <p style="font-size: 0.88rem; color: #64748b; margin-top: 4px;">${p.description}</p>
+        
+        <div style="margin: 12px 0 16px;">
+          <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+            <div style="width: ${pct}%; height: 100%; background: #2563eb; transition: width 0.3s;"></div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 10px;">Subtasks & Teammate Delegation</h4>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          ${p.tasks.map(t => `
+            <div class="action-item ${t.status === 'completed' ? 'done' : ''}" style="padding: 10px 14px; margin-bottom: 0;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" class="task-checkbox" ${t.status === 'completed' ? 'checked' : ''} onchange="toggleProjectSubtask('${p.id}', '${t.id}')">
+                <span class="task-title" style="font-size: 0.88rem; font-weight: 600;">${t.title}</span>
+              </div>
+              <span style="font-size: 0.75rem; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 700;">👤 ${t.assignee}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="newSubTitle-${p.id}" class="form-control" placeholder="New subtask deliverable..." style="padding: 8px 12px;">
+          <input type="text" id="newSubAssignee-${p.id}" class="form-control" placeholder="Assignee..." style="width: 140px; padding: 8px 12px;">
+          <button class="btn btn-primary" onclick="handleAddSubtask('${p.id}')">Add</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleProjectSubtask(projId, subtaskId) {
+  UniFlowStore.toggleSubtask(projId, subtaskId);
+  renderProjectsList();
+}
+
+function handleAddSubtask(projId) {
+  const titleInput = document.getElementById(`newSubTitle-${projId}`);
+  const assigneeInput = document.getElementById(`newSubAssignee-${projId}`);
+  if (!titleInput || !titleInput.value.trim()) return;
+
+  UniFlowStore.addSubtask(projId, {
+    title: titleInput.value.trim(),
+    assignee: assigneeInput.value.trim() || 'Unassigned'
+  });
+  renderProjectsList();
+}
+
+// --- PAGE: Study Analytics (analytics.html) ---
+function initAnalyticsPage() {
+  const tasks = UniFlowStore.getTasks();
+  const courses = UniFlowStore.getCourses();
+
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.status === 'completed').length;
+  const pending = total - completed;
+  const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const urgent = tasks.filter(t => t.priority === 'Urgent' && t.status !== 'completed').length;
+  const high = tasks.filter(t => t.priority === 'High' && t.status !== 'completed').length;
+  const stress = Math.min(10, Math.max(1, urgent * 3 + high * 1.5 + pending * 0.4)).toFixed(1);
+
+  const elRate = document.getElementById('metricCompletionRate');
+  const elStress = document.getElementById('metricStressIndex');
+  const elPending = document.getElementById('metricActiveDeadlines');
+
+  if (elRate) elRate.textContent = `${rate}%`;
+  if (elStress) elStress.textContent = `${stress} / 10`;
+  if (elPending) elPending.textContent = pending;
+
+  // Render course workload breakdown
+  const workloadContainer = document.getElementById('analyticsWorkloadBars');
+  if (workloadContainer) {
+    workloadContainer.innerHTML = courses.map(c => {
+      const cTasks = tasks.filter(t => t.courseCode === c.code && t.status !== 'completed');
+      const pct = total > 0 ? Math.round((cTasks.length / total) * 100) : 0;
+      return `
+        <div style="margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px;">
+            <span>${c.code} - ${c.name}</span>
+            <span>${cTasks.length} tasks (${pct}%)</span>
+          </div>
+          <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+            <div style="width: ${pct}%; height: 100%; background: ${c.color || '#2563eb'};"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// =============================================================================
+// 5. GLOBAL BOOTSTRAPPER (Runs on every page load)
+// =============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  initCommonUI();
+
+  // Route to the appropriate page initializer based on the current HTML file
+  const page = document.body.dataset.page;
+  if (page === 'dashboard') initDashboardPage();
+  else if (page === 'scanner') { /* Scanner wait for button clicks */ }
+  else if (page === 'calendar') initCalendarPage();
+  else if (page === 'courses') initCoursesPage();
+  else if (page === 'tasks') initTasksPage();
+  else if (page === 'projects') initProjectsPage();
+  else if (page === 'analytics') initAnalyticsPage();
+});
