@@ -1,0 +1,42 @@
+
+
+Calendar · HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniFlow — Smart Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="calendar">
+<div class="shell">
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div class="page-head">
+      <h1>Smart Calendar</h1>
+      <p class="sub">Every deadline from your courses lands here automatically. Click a day to see what's due.</p>
+    </div>
+ 
+    <div class="cal-head">
+      <h2 id="cal-label">Month</h2>
+      <div class="nav-btns">
+        <button class="secondary" id="cal-prev">← Prev</button>
+        <button class="secondary" id="cal-next">Next →</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+ 
+    <div class="day-tasks">
+      <div class="sec-head"><h2 id="day-tasks-title">Today</h2></div>
+      <div class="tasklist" id="day-tasks"></div>
+    </div>
+  </main>
+  
+</div>
+<script src="app.js"></script>
+</body>
+</html>
+ 

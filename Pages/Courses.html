@@ -1,0 +1,46 @@
+
+
+Courses · HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniFlow — Course Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="courses">
+<div class="shell">
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div class="page-head">
+      <h1>Course Hub</h1>
+      <p class="sub">Every enrolled subject, its professor, room, and credit weight — plus how far along you are in each.</p>
+    </div>
+ 
+    <section>
+      <div class="sec-head"><h2>Add a course</h2></div>
+      <form class="form-card" id="course-form">
+        <div class="form-row">
+          <div><label class="field-label">Course code</label><input type="text" id="c-code" placeholder="e.g. CSE 2104" required></div>
+          <div><label class="field-label">Course name</label><input type="text" id="c-name" placeholder="e.g. Data Structures" required></div>
+          <div><label class="field-label">Professor</label><input type="text" id="c-prof" placeholder="e.g. Dr. Ahmed"></div>
+          <div><label class="field-label">Room</label><input type="text" id="c-room" placeholder="e.g. CSE-210"></div>
+          <div><label class="field-label">Credits</label><input type="number" id="c-credits" step="0.5" placeholder="3"></div>
+        </div>
+        <button class="primary" type="submit">Add course</button>
+      </form>
+    </section>
+ 
+    <section>
+      <div class="sec-head"><h2>Your courses</h2></div>
+      <div class="courses" id="courses-grid"></div>
+    </section>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
+ 

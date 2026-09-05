@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniFlow — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="dashboard">
+<div class="shell">
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div class="top-row"><div class="date" id="today-date"></div></div>
+
+    <div class="page-head">
+      <h1 id="hero-line">Loading this week's plan…</h1>
+      <p class="sub">Pulled together from your course notices and deadlines. Check things off as you go — the list re-orders itself by what's due soonest.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n" id="stat-due">0</div><div class="l">tasks due this week</div></div>
+      <div class="stat"><div class="n" id="stat-courses">0</div><div class="l">active courses</div></div>
+      <div class="stat"><div class="n" id="stat-group">0</div><div class="l">group tasks waiting on you</div></div>
+    </div>
+
+    <section>
+      <div class="sec-head"><h2>This week's plan</h2><span class="count" id="task-count"></span></div>
+      <div class="tasklist" id="tasklist"></div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Your courses</h2><a href="courses.html" style="font-size:13px;color:#565D7D;">View all →</a></div>
+      <div class="courses" id="mini-courses"></div>
+    </section>
+  </main>
+</div>
+<script src="app.js"></script>
+<script>
+document.getElementById('today-date').textContent =
+  new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}).toUpperCase();
+</script>
+</body>
+</html>

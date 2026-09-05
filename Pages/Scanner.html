@@ -1,0 +1,61 @@
+
+
+Scanner · HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniFlow — Notice & PDF AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="scanner">
+<div class="shell">
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div class="page-head">
+      <h1>Notice &amp; PDF AI</h1>
+      <p class="sub">Paste text copied from a department notice, class-group message, or PDF — dates and deadline-like lines get pulled out and added straight to your task list.</p>
+    </div>
+ 
+    <section>
+      <div class="sec-head"><h2>Try a sample notice</h2></div>
+      <div class="extract-box">
+        <div class="drop">
+          <p>No text handy? Run this on a pre-loaded sample notice to see how extraction works.</p>
+          <button class="primary" id="sample-btn">Try it on a sample notice</button>
+        </div>
+      </div>
+    </section>
+ 
+    <section>
+      <div class="sec-head"><h2>Paste your own notice</h2></div>
+      <div class="extract-box">
+        <div class="drop">
+          <p>Works best with lines that mention a date, "deadline", "CT", "exam", "submit", or "assignment".</p>
+        </div>
+        <textarea id="notice-input" placeholder="e.g.
+CSE 2103 Assignment 2 deadline: September 14
+CT-2 for EEE 2151 postponed to next Tuesday
+Lab report submission due Sept 20, 11:59 PM"></textarea>
+        <div style="margin-top:12px;">
+          <button class="secondary" id="extract-btn">Extract from text</button>
+        </div>
+        <div class="extracted" id="extracted"></div>
+      </div>
+    </section>
+ 
+    <section>
+      <div class="sec-head"><h2>How this works right now</h2></div>
+      <p class="sub" style="max-width:640px;">
+        This prototype scans for month names, numeric dates, and keywords like "deadline" or "CT" using pattern matching — it's a stand-in for the real pipeline, which would run OCR on uploaded PDFs/screenshots and a language model to understand messier, informal notice text.
+      </p>
+    </section>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
+ 
