@@ -1,0 +1,262 @@
+:root{
+    --ink:#14192B;
+    --navy:#1B2A4A;
+    --paper:#F5F6FA;
+    --paper-2:#EBEDF5;
+    --line:#D8DCE8;
+    --amber:#D99A2B;
+    --amber-soft:#F6E4C0;
+    --green:#3F8F6F;
+    --green-soft:#DCEEE4;
+    --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces',serif;
+    margin:0;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  a{color:inherit;text-decoration:none;}
+
+  /* ---- shell ---- */
+  .shell{display:flex;min-height:100vh;}
+
+  .side{
+    width:220px;
+    flex-shrink:0;
+    background:var(--navy);
+    color:#DCE2F0;
+    padding:28px 20px;
+    display:flex;
+    flex-direction:column;
+    gap:34px;
+  }
+  .brand{
+    font-family:'Fraunces',serif;
+    font-size:22px;
+    color:#fff;
+    font-weight:600;
+  }
+  .brand span{color:var(--amber);}
+  .side nav{display:flex;flex-direction:column;gap:4px;}
+  .side nav a{
+    padding:9px 10px;
+    border-radius:6px;
+    font-size:14.5px;
+    color:#B7C0DA;
+  }
+  .side nav a.active{background:rgba(255,255,255,0.08);color:#fff;}
+  .side nav a:hover{color:#fff;}
+  .side-foot{
+    margin-top:auto;
+    font-size:12.5px;
+    color:#8A93B3;
+    line-height:1.5;
+    border-top:1px solid rgba(255,255,255,0.12);
+    padding-top:16px;
+  }
+
+  .main{flex:1;padding:38px 48px 70px;max-width:1040px;}
+
+  .top-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:6px;
+  }
+  .top-row .date{font-size:13px;color:#6B7291;font-family:'IBM Plex Mono',monospace;}
+
+  .hero{margin-top:26px;margin-bottom:36px;}
+  .hero h1{font-size:34px;line-height:1.2;max-width:640px;}
+  .hero p.sub{
+    margin-top:10px;
+    font-size:15px;
+    color:#565D7D;
+    max-width:520px;
+    line-height:1.55;
+  }
+
+  /* stat strip */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+    margin-bottom:38px;
+  }
+  .stat{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .stat .n{font-family:'Fraunces',serif;font-size:26px;font-weight:600;}
+  .stat .l{font-size:12.5px;color:#6B7291;margin-top:2px;}
+
+  section{margin-bottom:46px;}
+  .sec-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:16px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:10px;
+  }
+  .sec-head h2{font-size:19px;}
+  .sec-head .count{font-size:13px;color:#6B7291;}
+
+  /* task list */
+  .tasklist{display:flex;flex-direction:column;gap:8px;}
+  .task{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:13px 16px;
+  }
+  .task.done{opacity:0.5;}
+  .task.done .t-name{text-decoration:line-through;}
+  .task input[type=checkbox]{
+    width:17px;height:17px;
+    accent-color:var(--navy);
+    flex-shrink:0;
+  }
+  .t-name{font-size:14.5px;font-weight:500;flex:1;}
+  .t-course{font-size:12px;color:#6B7291;font-family:'IBM Plex Mono',monospace;}
+  .badge{
+    font-size:11px;
+    padding:3px 9px;
+    border-radius:100px;
+    font-weight:500;
+    white-space:nowrap;
+  }
+  .badge.high{background:#FBE1DC;color:#B33F2A;}
+  .badge.mid{background:var(--amber-soft);color:#8A5D14;}
+  .badge.low{background:var(--green-soft);color:#2A6B4E;}
+
+  /* course cards */
+  .courses{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  .course{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+  }
+  .course .code{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--navy);
+    font-weight:500;
+  }
+  .course h3{font-size:16px;margin-top:6px;margin-bottom:12px;line-height:1.3;}
+  .course .next{font-size:12.5px;color:#6B7291;margin-bottom:10px;}
+  .bar{height:6px;background:var(--paper-2);border-radius:100px;overflow:hidden;}
+  .bar > div{height:100%;background:var(--navy);}
+
+  /* notice extraction */
+  .extract-box{
+    background:var(--white);
+    border:1px dashed #B7BFD8;
+    border-radius:12px;
+    padding:26px;
+    text-align:left;
+  }
+  .extract-box .drop{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    flex-wrap:wrap;
+  }
+  .drop p{margin:0;font-size:14px;color:#565D7D;max-width:380px;line-height:1.5;}
+  button.primary{
+    background:var(--navy);
+    color:#fff;
+    border:none;
+    padding:10px 18px;
+    border-radius:7px;
+    font-size:13.5px;
+    font-weight:500;
+    cursor:pointer;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  button.primary:hover{background:#243560;}
+  .extracted{
+    margin-top:18px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .extracted .row{
+    display:none;
+    align-items:center;
+    gap:10px;
+    font-size:13.5px;
+    background:var(--paper-2);
+    padding:10px 12px;
+    border-radius:8px;
+  }
+  .extracted .row.show{display:flex;}
+  .extracted .row .tag{
+    font-size:10.5px;
+    background:var(--navy);
+    color:#fff;
+    padding:2px 7px;
+    border-radius:100px;
+    font-weight:500;
+    letter-spacing:0.02em;
+  }
+
+  /* kanban */
+  .kanban{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  .kcol{
+    background:var(--paper-2);
+    border-radius:10px;
+    padding:14px;
+    min-height:120px;
+  }
+  .kcol h4{
+    font-size:12.5px;
+    text-transform:none;
+    color:#565D7D;
+    margin:0 0 10px 2px;
+    font-weight:500;
+  }
+  .kcard{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:13px;
+    margin-bottom:8px;
+    line-height:1.4;
+  }
+  .kcard .who{
+    display:block;
+    margin-top:4px;
+    font-size:11.5px;
+    color:#8A93B3;
+  }
+
+  @media (max-width:760px){
+    .side{display:none;}
+    .main{padding:26px 20px 50px;}
+    .stats,.courses,.kanban{grid-template-columns:1fr;}
+  }
